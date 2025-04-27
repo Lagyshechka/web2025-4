@@ -16,5 +16,11 @@
     "url": "https://github.com/Lagyshechka/web2025-4/issues"
   },
   "homepage": "https://github.com/Lagyshechka/web2025-4#readme",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
 }
