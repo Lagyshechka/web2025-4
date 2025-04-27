@@ -1,10 +1,9 @@
 const { program } = require('commander');
 const http = require('http');
-const fs = require('fs').promises; 
+const fs = require('fs').promises;
 const path = require('path');
-const { Builder } = require('xml2js'); 
+const { parseStringPromise, Builder } = require('xml2js'); 
 
-// параметри 
 program
   .requiredOption('-h, --host <type>', 'Server host is required')
   .requiredOption('-p, --port <number>', 'Server port is required')
@@ -15,43 +14,45 @@ program.parse(process.argv);
 const options = program.opts();
 const inputFilePath = path.resolve(options.input);
 
-// перетворення json у xml
-async function readAndConvertJSONtoXML() {
+async function readAndConvertXML() {
   try {
-    const data = await fs.readFile(inputFilePath, 'utf8');
-    const jsonData = JSON.parse(data);
+    const xmlData = await fs.readFile(inputFilePath, 'utf8');
 
-    const auctions = Array.isArray(jsonData) ? jsonData : jsonData.data || [];
+    const jsonData = await parseStringPromise(xmlData);
+
+    const auctions = jsonData.data?.auction || [];
 
     const formattedData = {
       data: {
         auction: auctions.map(item => ({
-          code: item.r030,           // використовуємо r030 для коду
-          currency: item.cc,         // використовуємо cc для валюти
-          attraction: item.rate      // використовуємо rate для розміру
+          StockCode: item.code?.[0] || '',
+          ValCode: item.currency?.[0] || '',
+          Attraction: item.attraction?.[0] || ''
         }))
       }
     };
 
-    // створюємо xml
     const builder = new Builder({ headless: true });
-    const xml = builder.buildObject(formattedData);
+    const newXml = builder.buildObject(formattedData);
 
-    return xml;
+    return newXml;
 
   } catch (err) {
-    console.error('Error processing file:', err.message);
+    if (err.code === 'ENOENT') {
+      console.error('Cannot find input file');
+    } else {
+      console.error('Error processing file:', err.message);
+    }
     throw err;
   }
 }
 
-// створюємо сервер
 const server = http.createServer(async (req, res) => {
   try {
-    const xml = await readAndConvertJSONtoXML(); // викликаємо правильну функцію
+    const newXml = await readAndConvertXML();
 
     res.setHeader('Content-Type', 'application/xml');
-    res.end(xml);
+    res.end(newXml);
 
   } catch (err) {
     res.statusCode = 500;
